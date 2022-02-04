@@ -47,7 +47,7 @@ public class SkiServlet extends HttpServlet {
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       response.getWriter().write("Bad Url");
     } else {
-      response.setStatus(HttpServletResponse.SC_OK);
+      response.setStatus(HttpServletResponse.SC_CREATED);
       response.getWriter().write("It works!");
     }
   }
