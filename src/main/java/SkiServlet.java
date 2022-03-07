@@ -1,6 +1,9 @@
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -12,6 +15,22 @@ public class SkiServlet extends HttpServlet {
 
   private final Gson gson = new Gson();
   private final JsonMessage message = new JsonMessage("Error occurred in request");
+  private final ConnectionFactory factory = new ConnectionFactory();
+  private Connection connection;
+
+  @Override
+  public void init() throws ServletException {
+    super.init();
+    factory.setHost("44.233.74.178");
+    factory.setUsername("user");
+    factory.setPassword("user");
+    try {
+      connection = factory.newConnection();
+    } catch (IOException | TimeoutException e) {
+      e.printStackTrace();
+    }
+  }
+
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
@@ -217,13 +236,13 @@ public class SkiServlet extends HttpServlet {
   private boolean postLengthEightUrlValidation(String[] urlParts, HttpServletRequest request,
       HttpServletResponse response)
       throws IOException {
-    if (urlParts[1].equals("skiers") && urlParts[3].equals("seasons") && urlParts[5].equals("days")
+    if (urlParts[1].equals("skiers") && urlParts[3].equals("seasons") && urlParts[5].equals("day")
         && urlParts[7].equals("skiers")) {
       try {
-        Integer.parseInt(urlParts[2]);
+        int resortID = Integer.parseInt(urlParts[2]);
 //        Integer.parseInt(urlParts[4]);
 //        int day = Integer.parseInt(urlParts[6]);
-        Integer.parseInt(urlParts[8]);
+        int skierID = Integer.parseInt(urlParts[8]);
 //        if (day < 1 || day > 366) {
 //          response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 //          response.getWriter().print(gson.toJson(message));
@@ -231,12 +250,14 @@ public class SkiServlet extends HttpServlet {
 //        }
         JsonLift jsonLift = gson.fromJson(request.getReader(), JsonLift.class);
         response.setStatus(HttpServletResponse.SC_CREATED);
+        SendToRabbitMQ.sendToQueue(gson.toJson(jsonLift), connection);
+        response.getWriter().print(gson.toJson(new JsonMessage("Success")));
         return true;
       } catch (NumberFormatException | JsonParseException e) {
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         response.getWriter().print(gson.toJson(message));
         return false;
-      } catch (IOException e) {
+      } catch (Exception e) {
         e.printStackTrace();
       }
     }
