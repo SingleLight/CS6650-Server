@@ -236,7 +236,7 @@ public class SkiServlet extends HttpServlet {
   private boolean postLengthEightUrlValidation(String[] urlParts, HttpServletRequest request,
       HttpServletResponse response)
       throws IOException {
-    if (urlParts[1].equals("skiers") && urlParts[3].equals("seasons") && urlParts[5].equals("day")
+    if (urlParts[1].equals("skiers") && urlParts[3].equals("seasons") && urlParts[5].equals("days")
         && urlParts[7].equals("skiers")) {
       try {
         int resortID = Integer.parseInt(urlParts[2]);
