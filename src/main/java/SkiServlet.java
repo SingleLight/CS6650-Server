@@ -1,8 +1,12 @@
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
+import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import java.io.IOException;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -17,6 +21,8 @@ public class SkiServlet extends HttpServlet {
   private final JsonMessage message = new JsonMessage("Error occurred in request");
   private final ConnectionFactory factory = new ConnectionFactory();
   private Connection connection;
+  private SendToRabbitMQ sendToRabbitMQ = new SendToRabbitMQ();
+  private Queue<Channel> channelQueue = new LinkedBlockingQueue<>();
 
   @Override
   public void init() throws ServletException {
@@ -26,6 +32,9 @@ public class SkiServlet extends HttpServlet {
     factory.setPassword("user");
     try {
       connection = factory.newConnection();
+      for (int i = 0; i < 256; i++) {
+        channelQueue.offer(connection.createChannel());
+      }
     } catch (IOException | TimeoutException e) {
       e.printStackTrace();
     }
@@ -250,7 +259,7 @@ public class SkiServlet extends HttpServlet {
 //        }
         JsonLift jsonLift = gson.fromJson(request.getReader(), JsonLift.class);
         response.setStatus(HttpServletResponse.SC_CREATED);
-        SendToRabbitMQ.sendToQueue(gson.toJson(jsonLift), connection);
+        sendToRabbitMQ.sendToQueue(gson.toJson(jsonLift), channelQueue);
         response.getWriter().print(gson.toJson(new JsonMessage("Success")));
         return true;
       } catch (NumberFormatException | JsonParseException e) {
