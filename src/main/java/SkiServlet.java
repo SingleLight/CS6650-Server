@@ -4,7 +4,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeoutException;
@@ -21,19 +20,23 @@ public class SkiServlet extends HttpServlet {
   private final JsonMessage message = new JsonMessage("Error occurred in request");
   private final ConnectionFactory factory = new ConnectionFactory();
   private Connection connection;
-  private SendToRabbitMQ sendToRabbitMQ = new SendToRabbitMQ();
+  private SendToRabbitMQ skiSendToRabbitMQ = new SendToRabbitMQ("SKI");
+  private SendToRabbitMQ resortSendToRabbitMQ = new SendToRabbitMQ("RESORT");
   private Queue<Channel> channelQueue = new LinkedBlockingQueue<>();
 
   @Override
   public void init() throws ServletException {
     super.init();
     factory.setHost("44.233.74.178");
+    //factory.setHost("localhost");
     factory.setUsername("user");
     factory.setPassword("user");
     try {
       connection = factory.newConnection();
-      for (int i = 0; i < 256; i++) {
-        channelQueue.offer(connection.createChannel());
+      for (int i = 0; i < 64; i++) {
+        Channel channel = connection.createChannel();
+        channel.exchangeDeclare("direct_exchange", "direct");
+        channelQueue.offer(channel);
       }
     } catch (IOException | TimeoutException e) {
       e.printStackTrace();
@@ -258,8 +261,10 @@ public class SkiServlet extends HttpServlet {
 //          return false;
 //        }
         JsonLift jsonLift = gson.fromJson(request.getReader(), JsonLift.class);
+        JsonSkierPost jsonSkierPost = new JsonSkierPost(urlParts[2], urlParts[4], urlParts[6], urlParts[8], jsonLift.time, jsonLift.liftID, jsonLift.waitTime);
         response.setStatus(HttpServletResponse.SC_CREATED);
-        sendToRabbitMQ.sendToQueue(gson.toJson(jsonLift), channelQueue);
+        skiSendToRabbitMQ.sendToQueue(gson.toJson(jsonSkierPost), channelQueue);
+        resortSendToRabbitMQ.sendToQueue(gson.toJson(jsonSkierPost), channelQueue);
         response.getWriter().print(gson.toJson(new JsonMessage("Success")));
         return true;
       } catch (NumberFormatException | JsonParseException e) {
